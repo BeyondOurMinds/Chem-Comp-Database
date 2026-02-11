@@ -7,7 +7,7 @@ readme = "README.md"
 authors = [
     {name = "John T. Hardin", email = "johnhardin2021@gmail.com"}
 ]
-description = [Create a database of chemical compounds from an .sdf file and visualise in a GUI]
+description = "Create a database of chemical compounds from an .sdf file and visualise in a GUI"
 
 [pyproject.optional-dependencies]
 dev = [
