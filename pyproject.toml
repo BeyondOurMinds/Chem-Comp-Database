@@ -9,7 +9,7 @@ authors = [
 ]
 description = "Create a database of chemical compounds from an .sdf file and visualise in a GUI"
 
-[pyproject.optional-dependencies]
+[project.optional-dependencies]
 dev = [
     "pytest>=8.0",
     "mypy>=1.0",
