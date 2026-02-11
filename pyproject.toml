@@ -2,7 +2,10 @@
 name = "chem-database-tool"
 version = "0.1.0"
 requires-python = ">=3.12"
-dependencies=[]
+dependencies=[
+    "pandas",
+    "rdkit"
+]
 readme = "README.md"
 authors = [
     {name = "John T. Hardin", email = "johnhardin2021@gmail.com"}
