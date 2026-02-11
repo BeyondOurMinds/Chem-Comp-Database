@@ -1,6 +1,4 @@
-import pandas as pd
 from rdkit.Chem import PandasTools
-from rdkit import Chem
 import sqlite3
 
 df = PandasTools.LoadSDF("data/Molecules11.sdf", smilesName="SMILES")
