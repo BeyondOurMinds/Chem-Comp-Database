@@ -14,7 +14,7 @@ if 'ROMol' in df.columns:
     df = df.drop('ROMol', axis=1)  # Drop the non-serializable ROMol column
 
 # Connect to SQLite database (or create it if it doesn't exist)
-conn = sqlite3.connect('chem_database.db')
+conn = sqlite3.connect('data/chem_database.db')
 c = conn.cursor()
 df.to_sql(name='molecules', con=conn, if_exists='replace', index=False)
 conn.commit()
