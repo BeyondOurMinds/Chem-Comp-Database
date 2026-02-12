@@ -1,11 +1,11 @@
-from tkinter import *
-from tkinter import filedialog, messagebox
+import tkinter as tk
+from tkinter import filedialog, messagebox, Button, Label
 from Chem_Database.database import Database
 
 class app:
     
     def __init__(self):
-        self.root = Tk()
+        self.root = tk.Tk()
         self.root.title("Chem Database GUI")
 
         self.file_path = None
