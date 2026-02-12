@@ -95,3 +95,4 @@ class Database:
         cur.close()
         con.close()
         print(f"\nDatabase created and {len(self.df)} rows inserted successfully.")
+        return self.db_file
