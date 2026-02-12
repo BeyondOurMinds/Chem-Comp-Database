@@ -28,7 +28,7 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [project.scripts]
-chem-database-tool="Chem_Database.cli:app"
+chem-database-tool="Chem_Database.gui:app"
 
 [tool.pytest.ini_options]
 testpaths=["tests"]
