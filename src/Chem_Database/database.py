@@ -25,15 +25,15 @@ async def get_compound_async(smiles, semaphore, delay=0.3):
         try:
             await asyncio.sleep(delay)  # Add delay between requests
             # Run the blocking PubChem call in a thread pool
-            chem = await asyncio.to_thread(pcp.get_compounds, smiles, 'smiles')
-            return chem[0].iupac_name if chem and chem[0].iupac_name else "N/A"
+            chem = await asyncio.to_thread(pcp.get_compounds, smiles, 'smiles') # Fetch compound info from PubChem
+            return chem[0].iupac_name if chem and chem[0].iupac_name else "N/A" # Return IUPAC name or "N/A" if not found for first compound (if multiple compounds are returned, we take the first one)
         except Exception as e:
             print(f"Error fetching IUPAC name for SMILES: {smiles} - {e}")
             return "N/A"
 
 async def fetch_all_iupac_names():
-    smiles_list = df['SMILES'].tolist()
-    semaphore = asyncio.Semaphore(3)  # Only 3 concurrent requests at a time
+    smiles_list = df['SMILES'].tolist() # Extract SMILES from DataFrame
+    semaphore = asyncio.Semaphore(4)  # Only 4 concurrent requests at a time to avoid hitting PubChem rate limits
     return await asyncio.gather(*[get_compound_async(smiles, semaphore) for smiles in smiles_list])
 
 print("Fetching IUPAC names from PubChem (this may take a few minutes)...")
