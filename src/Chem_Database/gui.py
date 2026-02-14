@@ -147,6 +147,9 @@ class app:
                 self.save_image = Button(self.display_frame, image=self.save_icon, command=self.save_current_image, width=30, height=30)
                 self.save_image.grid(row=2, column=1, padx=15, pady=10)
 
+                self.chg_ord = Button(self.display_frame, text="Change Sort Order", command=self.update_order)
+                self.chg_ord.grid(row=2, column=3, padx=15, pady=10)
+
                 self.prev_img = Button(self.display_frame, text="Previous Molecule", command=self.display_previous)
                 self.prev_img.grid(row=2, column=0, padx=15, pady=10)
                 
@@ -178,6 +181,12 @@ class app:
         self.sort_column = column_mapping.get(selected_option, "CdId")  # Default to CdId if option not found
         self.current_direction = "ASC"  # Reset to first molecule when sort order changes
         self.current_index = 0
+        self.refresh_display()
+    
+    def update_order(self):
+        # Toggle sort direction
+        self.sort_direction = "DESC" if self.sort_direction == "ASC" else "ASC"
+        self.current_index = 0  # Reset to first molecule when sort order changes
         self.refresh_display()
     
     def display_next(self):
@@ -266,6 +275,9 @@ class app:
                 self.save_icon = ImageTk.PhotoImage(img2)
                 self.save_image = Button(self.display_frame, image=self.save_icon, command=self.save_current_image, width=30, height=30)
                 self.save_image.grid(row=2, column=1, padx=15, pady=10)
+
+                self.chg_ord = Button(self.display_frame, text="Change Sort Order", command=self.update_order)
+                self.chg_ord.grid(row=2, column=3, padx=15, pady=10)
 
                 self.prev_img = Button(self.display_frame, text="Previous Molecule", command=self.display_previous)
                 self.prev_img.grid(row=2, column=0, padx=15, pady=10)
