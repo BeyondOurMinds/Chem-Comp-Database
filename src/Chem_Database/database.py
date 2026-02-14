@@ -6,16 +6,48 @@ import pubchempy as pcp
 from io import BytesIO
 import sqlite3
 import asyncio
+from tkinter import messagebox
 
 class Database:
     def __init__(self, sdf_file, db_file='data/chem_database.db'):
         self.sdf_file = sdf_file
         self.db_file = db_file
         self.df = None
+        self.skipped_entries = []
 
     def load_sdf(self):
         """Load SDF file and prepare DataFrame"""
+        self.skipped_entries = []
+        supplier = Chem.SDMolSupplier(self.sdf_file, sanitize=False, strictParsing=False)
+        for idx in range(len(supplier)):
+            mol = supplier[idx]
+            cdid = None
+            if mol is not None and mol.HasProp("CdId"):
+                cdid = mol.GetProp("CdId")
+            else:
+                try:
+                    block = supplier.GetItemText(idx)
+                    if block:
+                        lines = block.splitlines()
+                        for i, line in enumerate(lines):
+                            if line.strip() == "> <CdId>" and i + 1 < len(lines):
+                                cdid = lines[i + 1].strip()
+                                break
+                except Exception:
+                    cdid = None
+
+            if mol is None:
+                if cdid:
+                    self.skipped_entries.append(cdid)
+                continue
+
+            # Try sanitization; any non-zero result indicates a sanitization error.
+            sanitize_result = Chem.SanitizeMol(mol, catchErrors=True)
+            if sanitize_result != 0 and cdid:
+                self.skipped_entries.append(cdid)
+
         self.df = PandasTools.LoadSDF(self.sdf_file, smilesName="SMILES")
+        messagebox.showwarning("Skipped Entries", f'Skipped {len(self.skipped_entries)} entries due to sanitization errors. CdIds: {self.skipped_entries}')
         
         print(self.df)
         print(f"\nDataFrame shape: {self.df.shape}")
@@ -49,7 +81,7 @@ class Database:
         if self.df is None:
             raise ValueError("DataFrame not loaded. Call load_sdf() first.")
         
-        print("Fetching IUPAC names from PubChem (this may take a few minutes)...")
+        messagebox.showinfo("Fetching IUPAC Names", "Fetching IUPAC names from PubChem (this may take a few minutes)...")
         iupac_names = asyncio.run(self._fetch_all_iupac_names())
         print("IUPAC names fetched!")
         
@@ -61,6 +93,7 @@ class Database:
         cur.execute('''
             CREATE TABLE IF NOT EXISTS molecules (
                 CdId INTEGER PRIMARY KEY,
+                EntryOrder INTEGER,
                 Structure BLOB,
                 SMILES TEXT,
                 IUPAC_NAME TEXT,
@@ -73,8 +106,10 @@ class Database:
             );
         ''')
         
+        entry_order = 0
         for idx, row in enumerate(self.df.itertuples()):
             id = row.CdId
+            entry_order += 1
             smiles = row.SMILES
             iupac_name = iupac_names[idx]  # Get the corresponding IUPAC name
             mol = Chem.MolFromSmiles(smiles)
@@ -88,9 +123,14 @@ class Database:
             img_bytes = BytesIO()
             img.save(img_bytes, format='PNG')
             img_data = img_bytes.getvalue()
-            cur.execute("INSERT INTO molecules (CdId, Structure, SMILES, IUPAC_NAME, Mol_Weight, LogP, H_Bond_Donors, H_Bond_Acceptors, Rotatable_Bonds, Ring_Count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                        (id, img_data, smiles, iupac_name, molWeight, logp, bonddonor, bondacceptor, bond, ringCount))
+            cur.execute("INSERT INTO molecules (CdId, EntryOrder, Structure, SMILES, IUPAC_NAME, Mol_Weight, LogP, H_Bond_Donors, H_Bond_Acceptors, Rotatable_Bonds, Ring_Count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        (id, entry_order, img_data, smiles, iupac_name, molWeight, logp, bonddonor, bondacceptor, bond, ringCount))
         
+        query = "SELECT COUNT(*) FROM molecules WHERE IUPAC_NAME = 'N/A'"
+        missing_iupac_count = con.execute(query).fetchone()[0]
+        if missing_iupac_count > 0:
+            messagebox.showwarning("IUPAC Name Warning", f"Could not fetch IUPAC names for {missing_iupac_count} molecules and are marked as 'N/A'. This may be due to your internet connection, rate limits, unrecognized SMILES, or other issues. Please check your internet connection and try again later.")
+
         con.commit()
         cur.close()
         con.close()

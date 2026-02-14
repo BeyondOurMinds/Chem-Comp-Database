@@ -86,10 +86,10 @@ class app:
                 self.database_path_label.grid(row=0, column=1, padx=5, pady=10)
 
                 self.next_img = Button(self.display_frame, text="Next Molecule", command=self.display_next)
-                self.next_img.grid(row=2, column=2, padx=5, pady=10)
+                self.next_img.grid(row=2, column=2, padx=15, pady=10)
 
                 self.prev_img = Button(self.display_frame, text="Previous Molecule", command=self.display_previous)
-                self.prev_img.grid(row=2, column=1, padx=5, pady=10)
+                self.prev_img.grid(row=2, column=0, padx=15, pady=10)
                 
                 db_label = Label(self.display_frame, text="Database Path:")
                 db_label.grid(row=0, column=0, padx=5, pady=10)
