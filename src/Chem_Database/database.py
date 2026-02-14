@@ -144,21 +144,3 @@ class Database:
         con.close()
         print(f"\nDatabase created and {entry_order} rows inserted successfully.")
         return self.db_file
-    
-    # Changing display_order to be a method of the Database class so it can access the database connection and perform queries based on the selected option from the dropdown menu in the GUI
-    def display_order(self, selected_option):
-        column_mapping = {
-            "CdId": "CdId",
-            "Molecular weight": "Mol_Weight",
-            "LogP": "LogP",
-            "H-bond Donors": "H_Bond_Donors",
-            "H-bond Acceptors": "H_Bond_Acceptors"
-        }
-        con = sqlite3.connect(self.db_file)
-        cur = con.cursor()
-        option = column_mapping.get(selected_option, "CdId")  # Default to CdId if option not found
-        query = f"SELECT * FROM molecules ORDER BY {option} DESC"
-        results = cur.execute(query).fetchall()
-        
-        con.close()
-        print(f"\nResults ordered by {option}:")
