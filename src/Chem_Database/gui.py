@@ -47,6 +47,10 @@ class app:
             messagebox.showerror("Error", "Please select an SDF file first!")
             return
         
+        if self.database is None:
+            messagebox.showerror("Error", "Database not initialized!")
+            return
+        
         try:
             self.database.load_sdf()
             messagebox.showinfo("Success", "SDF file loaded successfully!")
@@ -91,7 +95,8 @@ class app:
                 db_label.grid(row=0, column=0, padx=5, pady=10)
             else:
                 # Update label if display frame already exists
-                self.database_path_label.config(text=db_path)
+                if self.database_path_label is not None:
+                    self.database_path_label.config(text=db_path)
             
             messagebox.showinfo("Success", "Database created successfully!")
         except Exception as e:

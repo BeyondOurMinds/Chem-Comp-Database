@@ -1,6 +1,6 @@
 import sqlite3
 from io import BytesIO
-from PIL import Image, ImageTk
+from PIL import Image
 
 class ImageHandler:
     def __init__(self, db_file='data/chem_database.db'):
