@@ -1,8 +1,9 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox, Button, Label, OptionMenu, ttk
+import os
+from tkinter import filedialog, messagebox, Button, Label, OptionMenu
 from Chem_Database.database import Database
 from Chem_Database.image import ImageHandler
-from PIL import ImageTk
+from PIL import ImageTk, Image
 
 
 class app:
@@ -24,19 +25,19 @@ class app:
 
         self.file_path_label = Label(file_frame, text="No file selected", border=2, relief="sunken")
         self.file_path_label.grid(row=0, column=1, padx=5, pady=10)
+
         file_select = Button(file_frame, text="Select SDF File", command=self.open_file)
         file_select.grid(row=0, column=0, padx=5, pady=10)
+
         load_sdf = Button(file_frame, text="Load SDF", command=self.load_sdf)
         load_sdf.grid(row=0, column=2, padx=5, pady=10)
+
         create_db = Button(file_frame, text="Create Database", command=self.create_database)
         create_db.grid(row=1, column=0, padx=5, pady=10)
+
+        load_db = Button(file_frame, text="Load Database", command=self.load_database)
+        load_db.grid(row=1, column=3, padx=5, pady=10)
         
-        # testing drop down for molecule selection
-        options = ["Molecule 1", "Molecule 2", "Molecule 3"]
-        self.selected_option = tk.StringVar(file_frame)
-        self.selected_option.set(options[0])
-        dropdown = OptionMenu(file_frame, self.selected_option, *options)
-        dropdown.grid(row=1, column=1, padx=5, pady=10)
 
         # testing collapse frame for molecule details
         self.details_frame = tk.Frame(self.root, bd=2, relief="groove")
@@ -131,11 +132,23 @@ class app:
                 self.next_img = Button(self.display_frame, text="Next Molecule", command=self.display_next)
                 self.next_img.grid(row=2, column=2, padx=15, pady=10)
 
+                icon_path = os.path.join(os.path.dirname(__file__), "..", "..", "images", "save-icon.png")
+                img2 = Image.open(icon_path).resize((30, 30))
+                self.save_icon = ImageTk.PhotoImage(img2)
+                self.save_image = Button(self.display_frame, image=self.save_icon, command=self.save_current_image, width=30, height=30)
+                self.save_image.grid(row=2, column=1, padx=15, pady=10)
+
                 self.prev_img = Button(self.display_frame, text="Previous Molecule", command=self.display_previous)
                 self.prev_img.grid(row=2, column=0, padx=15, pady=10)
                 
                 db_label = Label(self.display_frame, text="Database Path:")
                 db_label.grid(row=0, column=0, padx=5, pady=10)
+
+                options = ["CdId","Molecular weight", "LogP", "H-bond Donors", "H-bond Acceptors"]
+                self.selected_option = tk.StringVar(self.display_frame)
+                self.selected_option.set(options[0])
+                dropdown = OptionMenu(self.display_frame, self.selected_option, *options, command=lambda _: self.database.display_order(self.selected_option.get()) if self.database is not None else None)
+                dropdown.grid(row=0, column=2, padx=5, pady=10)
             else:
                 # Update label if display frame already exists
                 if self.database_path_label is not None:
@@ -172,6 +185,65 @@ class app:
             self.img_display.config(image=self.current_photo)
         except Exception as e:
             messagebox.showerror("Error", f"Failed to display image:\n{str(e)}")
+    
+    def save_current_image(self):
+        if self.image_handler is None:
+            messagebox.showerror("Error", "Database not created yet!")
+            return
+        
+        try:
+            img = self.image_handler.get_image_by_cd_id(self.current_index)
+            save_path = filedialog.asksaveasfilename(defaultextension=".png", filetypes=[("PNG files", "*.png")])
+            if save_path:
+                img.save(save_path)
+                messagebox.showinfo("Success", f"Image saved to {save_path}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save image:\n{str(e)}")
+        
+    def load_database(self):
+        db_path = filedialog.askopenfilename(filetypes=[("SQLite Database", "*.db")])
+        if db_path:
+            self.database = Database(sdf_file=None, db_file=db_path)
+            self.image_handler = ImageHandler(db_path)
+            messagebox.showinfo("Database Loaded", f"Loaded database from: {db_path}")
+            if self.display_frame is None:
+                self.display_frame = tk.Frame(self.root, bd=2, relief="groove")
+                self.display_frame.pack(padx=10, pady=10)
+
+                # Initialize image display with first molecule
+                self.current_index = 1
+                img = self.image_handler.get_image_by_cd_id(self.current_index)
+                self.current_photo = ImageTk.PhotoImage(img)
+                self.img_display = Label(self.display_frame, image=self.current_photo)
+                self.img_display.grid(row=1, column=1, padx=5, pady=10)
+                
+                self.database_path_label = Label(self.display_frame, text=db_path, border=2, relief="sunken")
+                self.database_path_label.grid(row=0, column=1, padx=5, pady=10)
+
+                self.next_img = Button(self.display_frame, text="Next Molecule", command=self.display_next)
+                self.next_img.grid(row=2, column=2, padx=15, pady=10)
+
+                icon_path = os.path.join(os.path.dirname(__file__), "..", "..", "images", "save-icon.png")
+                img2 = Image.open(icon_path).resize((30, 30))
+                self.save_icon = ImageTk.PhotoImage(img2)
+                self.save_image = Button(self.display_frame, image=self.save_icon, command=self.save_current_image, width=30, height=30)
+                self.save_image.grid(row=2, column=1, padx=15, pady=10)
+
+                self.prev_img = Button(self.display_frame, text="Previous Molecule", command=self.display_previous)
+                self.prev_img.grid(row=2, column=0, padx=15, pady=10)
+                
+                db_label = Label(self.display_frame, text="Database Path:")
+                db_label.grid(row=0, column=0, padx=5, pady=10)
+
+                options = ["CdId","Molecular weight", "LogP", "H-bond Donors", "H-bond Acceptors"]
+                self.selected_option = tk.StringVar(self.display_frame)
+                self.selected_option.set(options[0])
+                dropdown = OptionMenu(self.display_frame, self.selected_option, *options, command=lambda _: self.database.display_order(self.selected_option.get()) if self.database is not None else None)
+                dropdown.grid(row=0, column=2, padx=5, pady=10)
+            else:
+                # Update label if display frame already exists
+                if self.database_path_label is not None:
+                    self.database_path_label.config(text=db_path)
 
 if __name__ == "__main__":
     app()
