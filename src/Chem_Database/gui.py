@@ -19,6 +19,8 @@ class app:
         self.database_path_label = None
         self.current_index = 1
         self.current_photo = None
+        self.sort_column = "CdId"
+        self.sort_direction = "ASC"
 
         file_frame = tk.Frame(self.root, bd=2, relief="groove")
         file_frame.pack(padx=10, pady=10)
@@ -120,11 +122,18 @@ class app:
                 self.display_frame.pack(padx=10, pady=10)
 
                 # Initialize image display with first molecule
-                self.current_index = 1
-                img = self.image_handler.get_image_by_cd_id(self.current_index)
-                self.current_photo = ImageTk.PhotoImage(img)
-                self.img_display = Label(self.display_frame, image=self.current_photo)
+                # Initialize sorting defaults
+                self.sort_column = "CdId"
+                self.sort_direction = "ASC"
+                self.current_index = 0
+
+                # Create image label (empty initially)
+                self.img_display = Label(self.display_frame)
                 self.img_display.grid(row=1, column=1, padx=5, pady=10)
+
+                # Load first molecule
+                self.refresh_display()
+
                 
                 self.database_path_label = Label(self.display_frame, text=db_path, border=2, relief="sunken")
                 self.database_path_label.grid(row=0, column=1, padx=5, pady=10)
@@ -147,7 +156,7 @@ class app:
                 options = ["CdId","Molecular weight", "LogP", "H-bond Donors", "H-bond Acceptors"]
                 self.selected_option = tk.StringVar(self.display_frame)
                 self.selected_option.set(options[0])
-                dropdown = OptionMenu(self.display_frame, self.selected_option, *options, command=lambda _: self.database.display_order(self.selected_option.get()) if self.database is not None else None)
+                dropdown = OptionMenu(self.display_frame, self.selected_option, *options, command=self.update_sort)
                 dropdown.grid(row=0, column=2, padx=5, pady=10)
             else:
                 # Update label if display frame already exists
@@ -158,6 +167,19 @@ class app:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to create database:\n{str(e)}")
     
+    def update_sort(self, selected_option):
+        column_mapping = {
+            "CdId": "CdId",
+            "Molecular weight": "Mol_Weight",
+            "LogP": "LogP",
+            "H-bond Donors": "H_Bond_Donors",
+            "H-bond Acceptors": "H_Bond_Acceptors"
+        }
+        self.sort_column = column_mapping.get(selected_option, "CdId")  # Default to CdId if option not found
+        self.current_direction = "ASC"  # Reset to first molecule when sort order changes
+        self.current_index = 0
+        self.refresh_display()
+    
     def display_next(self):
         if self.image_handler is None:
             messagebox.showerror("Error", "Database not created yet!")
@@ -166,9 +188,7 @@ class app:
         try:
             # Increment to next molecule
             self.current_index += 1
-            img = self.image_handler.get_image_by_cd_id(self.current_index)
-            self.current_photo = ImageTk.PhotoImage(img)
-            self.img_display.config(image=self.current_photo)
+            self.refresh_display()
         except Exception as e:
             messagebox.showerror("Error", f"Failed to display image:\n{str(e)}")
 
@@ -179,12 +199,25 @@ class app:
         
         try:
             # Decrement to previous molecule
-            self.current_index -= 1
-            img = self.image_handler.get_image_by_cd_id(self.current_index)
-            self.current_photo = ImageTk.PhotoImage(img)
-            self.img_display.config(image=self.current_photo)
+            if self.current_index > 0:
+                self.current_index -= 1
+                self.refresh_display()
         except Exception as e:
             messagebox.showerror("Error", f"Failed to display image:\n{str(e)}")
+    
+    def refresh_display(self):
+        if self.image_handler is None:
+            messagebox.showerror("Error", "Database not created yet!")
+            return
+        
+        img = self.image_handler.get_image_by_offset(
+            self.current_index,
+            sort_column=self.sort_column,
+            sort_direction=self.sort_direction
+        )
+
+        self.current_photo = ImageTk.PhotoImage(img)
+        self.img_display.config(image=self.current_photo)
     
     def save_current_image(self):
         if self.image_handler is None:
@@ -192,7 +225,7 @@ class app:
             return
         
         try:
-            img = self.image_handler.get_image_by_cd_id(self.current_index)
+            img = self.image_handler.get_image_by_offset(self.current_index)
             save_path = filedialog.asksaveasfilename(defaultextension=".png", filetypes=[("PNG files", "*.png")])
             if save_path:
                 img.save(save_path)
@@ -211,11 +244,16 @@ class app:
                 self.display_frame.pack(padx=10, pady=10)
 
                 # Initialize image display with first molecule
-                self.current_index = 1
-                img = self.image_handler.get_image_by_cd_id(self.current_index)
-                self.current_photo = ImageTk.PhotoImage(img)
-                self.img_display = Label(self.display_frame, image=self.current_photo)
+                # Initialize sorting defaults
+                self.sort_column = "CdId"
+                self.sort_direction = "ASC"
+                self.current_index = 0
+
+                self.img_display = Label(self.display_frame)
                 self.img_display.grid(row=1, column=1, padx=5, pady=10)
+
+                self.refresh_display()
+
                 
                 self.database_path_label = Label(self.display_frame, text=db_path, border=2, relief="sunken")
                 self.database_path_label.grid(row=0, column=1, padx=5, pady=10)
@@ -238,7 +276,7 @@ class app:
                 options = ["CdId","Molecular weight", "LogP", "H-bond Donors", "H-bond Acceptors"]
                 self.selected_option = tk.StringVar(self.display_frame)
                 self.selected_option.set(options[0])
-                dropdown = OptionMenu(self.display_frame, self.selected_option, *options, command=lambda _: self.database.display_order(self.selected_option.get()) if self.database is not None else None)
+                dropdown = OptionMenu(self.display_frame, self.selected_option, *options, command=self.update_sort)
                 dropdown.grid(row=0, column=2, padx=5, pady=10)
             else:
                 # Update label if display frame already exists
