@@ -76,7 +76,7 @@ class Database:
         semaphore = asyncio.Semaphore(4)  # Only 4 concurrent requests at a time to avoid hitting PubChem rate limits
         return await asyncio.gather(*[self._get_compound_async(smiles, semaphore) for smiles in smiles_list])
 
-    def create_database(self):
+    def create_database(self, filter_list=None):
         """Create SQLite database and insert all molecule data"""
         if self.df is None:
             raise ValueError("DataFrame not loaded. Call load_sdf() first.")
@@ -109,20 +109,28 @@ class Database:
         entry_order = 0
         for idx, row in enumerate(self.df.itertuples()):
             id = row.CdId
-            entry_order += 1
             smiles = row.SMILES
             iupac_name = iupac_names[idx]  # Get the corresponding IUPAC name
             mol = Chem.MolFromSmiles(smiles)
             bond = rdMolDescriptors.CalcNumRotatableBonds(mol)
             logp = rdMolDescriptors.CalcCrippenDescriptors(mol)[0]
+            if filter_list and "LogP" in filter_list and logp >= 5:
+                continue
             bonddonor = rdMolDescriptors.CalcNumHBD(mol)
+            if filter_list and "H_Bond_Donors" in filter_list and bonddonor >= 5:
+                continue
             bondacceptor = rdMolDescriptors.CalcNumHBA(mol)
+            if filter_list and "H_Bond_Acceptors" in filter_list and bondacceptor >= 10:
+                continue
             ringCount = rdMolDescriptors.CalcNumRings(mol)
             molWeight = rdMolDescriptors.CalcExactMolWt(mol)
+            if filter_list and "Mol_Weight" in filter_list and molWeight >= 500:
+                continue
             img = Draw.MolToImage(mol)
             img_bytes = BytesIO()
             img.save(img_bytes, format='PNG')
             img_data = img_bytes.getvalue()
+            entry_order += 1
             cur.execute("INSERT INTO molecules (CdId, EntryOrder, Structure, SMILES, IUPAC_NAME, Mol_Weight, LogP, H_Bond_Donors, H_Bond_Acceptors, Rotatable_Bonds, Ring_Count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         (id, entry_order, img_data, smiles, iupac_name, molWeight, logp, bonddonor, bondacceptor, bond, ringCount))
         
@@ -134,5 +142,5 @@ class Database:
         con.commit()
         cur.close()
         con.close()
-        print(f"\nDatabase created and {len(self.df)} rows inserted successfully.")
+        print(f"\nDatabase created and {entry_order} rows inserted successfully.")
         return self.db_file

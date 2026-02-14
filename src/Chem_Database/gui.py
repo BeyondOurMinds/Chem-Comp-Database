@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox, Button, Label
+from tkinter import filedialog, messagebox, Button, Label, OptionMenu, ttk
 from Chem_Database.database import Database
 from Chem_Database.image import ImageHandler
 from PIL import ImageTk
@@ -30,8 +30,42 @@ class app:
         load_sdf.grid(row=0, column=2, padx=5, pady=10)
         create_db = Button(file_frame, text="Create Database", command=self.create_database)
         create_db.grid(row=1, column=0, padx=5, pady=10)
+        
+        # testing drop down for molecule selection
+        options = ["Molecule 1", "Molecule 2", "Molecule 3"]
+        self.selected_option = tk.StringVar(file_frame)
+        self.selected_option.set(options[0])
+        dropdown = OptionMenu(file_frame, self.selected_option, *options)
+        dropdown.grid(row=1, column=1, padx=5, pady=10)
+
+        # testing collapse frame for molecule details
+        self.details_frame = tk.Frame(self.root, bd=2, relief="groove")
+        self.details_frame.pack(padx=10, pady=10)
+        details_label = Label(self.details_frame, text="Filter Options")
+        # adding checkbox filter options for molecule details
+        self.filter_var1 = tk.BooleanVar()
+        self.filter_var2 = tk.BooleanVar()
+        self.filter_var3 = tk.BooleanVar()
+        self.filter_var4 = tk.BooleanVar()
+        filter1 = tk.Checkbutton(self.details_frame, text="Molecular Weight <= 500 Da", variable=self.filter_var1)
+        filter2 = tk.Checkbutton(self.details_frame, text="Logp <= 5", variable=self.filter_var2)
+        filter3 = tk.Checkbutton(self.details_frame, text="H-bond donors <= 5", variable=self.filter_var3)
+        filter4 = tk.Checkbutton(self.details_frame, text="H-bond acceptors <= 10", variable=self.filter_var4)
+        filter1.grid(row=1, column=0, sticky='w', padx=5, pady=5)
+        filter2.grid(row=2, column=0, sticky='w', padx=5, pady=5)
+        filter3.grid(row=3, column=0, sticky='w', padx=5, pady=5)
+        filter4.grid(row=4, column=0, sticky='w', padx=5, pady=5)
+        details_label.grid(row=0, column=0, padx=5, pady=5)
+        collapse_button = Button(file_frame, text="Filter Options", command=self.toggle_details)
+        collapse_button.grid(row=1, column=2, padx=5, pady=10)
 
         self.root.mainloop()
+    
+    def toggle_details(self):
+        if self.details_frame.winfo_viewable():
+            self.details_frame.pack_forget()
+        else:
+            self.details_frame.pack(padx=10, pady=10)
 
     def open_file(self):
         file_path = filedialog.askopenfilename(filetypes=[("SDF files", "*.sdf")])
@@ -65,9 +99,18 @@ class app:
         if self.database is None or self.database.df is None:
             messagebox.showerror("Error", "Please load the SDF file first!")
             return
+        filter_list = []
+        if self.filter_var1.get():
+            filter_list.append("Mol_Weight")
+        if self.filter_var2.get():
+            filter_list.append("LogP")
+        if self.filter_var3.get():
+            filter_list.append("H_Bond_Donors")
+        if self.filter_var4.get():
+            filter_list.append("H_Bond_Acceptors")
         
         try:
-            self.database.create_database()
+            self.database.create_database(filter_list=filter_list)
             db_path = self.database.db_file
             self.image_handler = ImageHandler(db_path)
             # Create and show display frame after successful database creation
