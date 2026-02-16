@@ -5,6 +5,13 @@ from Chem_Database.database import Database
 from Chem_Database.image import ImageHandler
 from Chem_Database.img_display import InfoHandler
 from PIL import ImageTk, Image
+import sys
+
+def resource_path(relative_path):
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.abspath("."), relative_path)
+
 
 
 class app:
@@ -146,7 +153,7 @@ class app:
                 self.next_img = Button(self.display_frame, text="Next Molecule", command=self.display_next)
                 self.next_img.grid(row=2, column=2, padx=15, pady=10)
 
-                save_icon_path = os.path.join(os.path.dirname(__file__), "..", "..", "images", "save-icon.png")
+                save_icon_path = resource_path("images/save-icon.png")
                 img2 = Image.open(save_icon_path).resize((30, 30))
                 self.save_icon = ImageTk.PhotoImage(img2)
                 self.save_image = Button(self.display_frame, image=self.save_icon, command=self.save_current_image, width=30, height=30)
