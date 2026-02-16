@@ -3,6 +3,7 @@ import os
 from tkinter import filedialog, messagebox, Button, Label, OptionMenu
 from Chem_Database.database import Database
 from Chem_Database.image import ImageHandler
+from Chem_Database.img_display import InfoHandler
 from PIL import ImageTk, Image
 
 
@@ -23,7 +24,7 @@ class app:
         self.sort_direction = "ASC"
 
         file_frame = tk.Frame(self.root, bd=2, relief="groove")
-        file_frame.pack(padx=10, pady=10)
+        file_frame.grid(row=0, column=0, padx=10, pady=10)
 
         self.file_path_label = Label(file_frame, text="No file selected", border=2, relief="sunken")
         self.file_path_label.grid(row=0, column=1, padx=5, pady=10)
@@ -38,12 +39,12 @@ class app:
         create_db.grid(row=1, column=0, padx=5, pady=10)
 
         load_db = Button(file_frame, text="Load Database", command=self.load_database)
-        load_db.grid(row=1, column=3, padx=5, pady=10)
+        load_db.grid(row=1, column=2, padx=5, pady=10)
         
 
         # testing collapse frame for molecule details
-        self.details_frame = tk.Frame(self.root, bd=2, relief="groove")
-        self.details_frame.pack(padx=10, pady=10)
+        self.details_frame = tk.Frame(file_frame, bd=2, relief="groove")
+        self.details_frame.grid(row=3, column=0, columnspan=4, padx=10, pady=10)
         details_label = Label(self.details_frame, text="Filter Options")
         # adding checkbox filter options for molecule details
         self.filter_var1 = tk.BooleanVar()
@@ -60,15 +61,15 @@ class app:
         filter4.grid(row=4, column=0, sticky='w', padx=5, pady=5)
         details_label.grid(row=0, column=0, padx=5, pady=5)
         collapse_button = Button(file_frame, text="Filter Options", command=self.toggle_details)
-        collapse_button.grid(row=1, column=2, padx=5, pady=10)
+        collapse_button.grid(row=1, column=1, padx=5, pady=10)
 
         self.root.mainloop()
     
     def toggle_details(self):
         if self.details_frame.winfo_viewable():
-            self.details_frame.pack_forget()
+            self.details_frame.grid_remove()
         else:
-            self.details_frame.pack(padx=10, pady=10)
+            self.details_frame.grid(row=3, column=0, columnspan=4, padx=10, pady=10)
 
     def open_file(self):
         file_path = filedialog.askopenfilename(filetypes=[("SDF files", "*.sdf")])
@@ -119,7 +120,8 @@ class app:
             # Create and show display frame after successful database creation
             if self.display_frame is None:
                 self.display_frame = tk.Frame(self.root, bd=2, relief="groove")
-                self.display_frame.pack(padx=10, pady=10)
+                self.display_frame.grid(row=1, column=0, padx=10, pady=10)
+
 
                 # Initialize image display with first molecule
                 # Initialize sorting defaults
@@ -129,7 +131,10 @@ class app:
 
                 # Create image label (empty initially)
                 self.img_display = Label(self.display_frame)
-                self.img_display.grid(row=1, column=1, padx=5, pady=10)
+                self.img_display.grid(row=1, column=0, padx=5, pady=10)
+
+                self.info_display = tk.Frame(self.display_frame, bd=2, relief="groove")
+                self.info_display.grid(row=1, column=1, padx=5, pady=10)
 
                 # Load first molecule
                 self.refresh_display()
@@ -141,8 +146,8 @@ class app:
                 self.next_img = Button(self.display_frame, text="Next Molecule", command=self.display_next)
                 self.next_img.grid(row=2, column=2, padx=15, pady=10)
 
-                icon_path = os.path.join(os.path.dirname(__file__), "..", "..", "images", "save-icon.png")
-                img2 = Image.open(icon_path).resize((30, 30))
+                save_icon_path = os.path.join(os.path.dirname(__file__), "..", "..", "images", "save-icon.png")
+                img2 = Image.open(save_icon_path).resize((30, 30))
                 self.save_icon = ImageTk.PhotoImage(img2)
                 self.save_image = Button(self.display_frame, image=self.save_icon, command=self.save_current_image, width=30, height=30)
                 self.save_image.grid(row=2, column=1, padx=15, pady=10)
@@ -227,6 +232,30 @@ class app:
 
         self.current_photo = ImageTk.PhotoImage(img)
         self.img_display.config(image=self.current_photo)
+
+        self.update_info_display()
+    
+    def update_info_display(self):
+        # clear previous info
+        for widget in self.info_display.winfo_children():
+            widget.destroy()
+        
+        if self.database is None or self.database.db_file is None:
+            messagebox.showerror("Error", "Database not initialized!")
+            return
+        
+        info_handler = InfoHandler(self.database.db_file)
+        try:
+            info = info_handler.get_info_by_offset(
+                self.current_index,
+                sort_column=self.sort_column,
+                sort_direction=self.sort_direction
+            )
+            for key, value in info.items():
+                label = Label(self.info_display, text=f"{key}: {value}", width=60, wraplength=400, justify="left", anchor="w")
+                label.pack(anchor='w')
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to retrieve information:\n{str(e)}")
     
     def save_current_image(self):
         if self.image_handler is None:
@@ -250,7 +279,7 @@ class app:
             messagebox.showinfo("Database Loaded", f"Loaded database from: {db_path}")
             if self.display_frame is None:
                 self.display_frame = tk.Frame(self.root, bd=2, relief="groove")
-                self.display_frame.pack(padx=10, pady=10)
+                self.display_frame.grid(row=1, column=0, padx=10, pady=10)
 
                 # Initialize image display with first molecule
                 # Initialize sorting defaults
@@ -259,7 +288,10 @@ class app:
                 self.current_index = 0
 
                 self.img_display = Label(self.display_frame)
-                self.img_display.grid(row=1, column=1, padx=5, pady=10)
+                self.img_display.grid(row=1, column=0, padx=5, pady=10)
+
+                self.info_display = tk.Frame(self.display_frame, bd=2, relief="groove")
+                self.info_display.grid(row=1, column=1, padx=5, pady=10)
 
                 self.refresh_display()
 
