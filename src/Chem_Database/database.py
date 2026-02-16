@@ -6,10 +6,11 @@ import pubchempy as pcp
 from io import BytesIO
 import sqlite3
 import asyncio
+import os
 from tkinter import messagebox
 
 class Database:
-    def __init__(self, sdf_file, db_file='data/chem_database.db'):
+    def __init__(self, sdf_file, db_file=os.path.join(os.getcwd(), "chem_database.db")):
         self.sdf_file = sdf_file
         self.db_file = db_file
         self.df = None
