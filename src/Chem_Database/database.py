@@ -58,7 +58,7 @@ class Database:
         
         print(f"Columns: {self.df.columns.tolist()}")
 
-    async def _get_compound_async(self, smiles, semaphore, delay=0.3):
+    async def get_compound_async(self, smiles, semaphore, delay=0.3):
         """Fetch IUPAC name for a single SMILES string with rate limiting"""
         async with semaphore:  # Limit concurrent requests
             try:
@@ -70,13 +70,13 @@ class Database:
                 print(f"Error fetching IUPAC name for SMILES: {smiles} - {e}")
                 return "N/A"
 
-    async def _fetch_all_iupac_names(self):
+    async def fetch_all_iupac_names(self):
         """Fetch IUPAC names for all molecules in the DataFrame"""
         if self.df is None or 'SMILES' not in self.df.columns:
             raise ValueError("DataFrame not loaded or SMILES column not found. Call load_sdf() first.")
         smiles_list = self.df['SMILES'].tolist()
         semaphore = asyncio.Semaphore(4)  # Only 4 concurrent requests at a time to avoid hitting PubChem rate limits
-        return await asyncio.gather(*[self._get_compound_async(smiles, semaphore) for smiles in smiles_list])
+        return await asyncio.gather(*[self.get_compound_async(smiles, semaphore) for smiles in smiles_list])
 
     def create_database(self, filter_list=None):
         """Create SQLite database and insert all molecule data"""
@@ -84,7 +84,7 @@ class Database:
             raise ValueError("DataFrame not loaded. Call load_sdf() first.")
         
         messagebox.showinfo("Fetching IUPAC Names", "Fetching IUPAC names from PubChem (this may take a few minutes)...")
-        iupac_names = asyncio.run(self._fetch_all_iupac_names())
+        iupac_names = asyncio.run(self.fetch_all_iupac_names())
         print("IUPAC names fetched!")
         
         # Connect to SQLite database (or create it if it doesn't exist)
