@@ -8,6 +8,20 @@ import sqlite3
 import asyncio
 import os
 from tkinter import messagebox
+import logging
+import certifi
+import ssl
+
+os.environ['SSL_CERT_FILE'] = certifi.where()
+ssl._create_default_https_context = ssl.create_default_context
+
+
+logging.basicConfig(
+    filename="iupac_errors.log",
+    level=logging.ERROR,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
 
 class Database:
     def __init__(self, sdf_file, db_file=os.path.join(os.getcwd(), "chem_database.db")):
@@ -68,7 +82,7 @@ class Database:
                 chem = await asyncio.to_thread(pcp.get_compounds, smiles, 'smiles')
                 return chem[0].iupac_name if len(chem) > 0 and chem[0].iupac_name else "N/A"
             except Exception as e:
-                print(f"Error fetching IUPAC name for SMILES: {smiles} - {e}")
+                logging.error(f"SMILES: {smiles} | Error: {e}")
                 return "N/A"
 
     async def fetch_all_iupac_names(self):
