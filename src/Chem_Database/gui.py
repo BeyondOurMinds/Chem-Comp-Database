@@ -265,6 +265,10 @@ class app:
 
         self.current_photo = ImageTk.PhotoImage(img)
         self.img_display.config(image=self.current_photo)
+        
+        # Update the current molecule label if it exists
+        if hasattr(self, 'current_mol_label'):
+            self.current_mol_label.config(text=f'{self.current_index + 1} / {self.get_molecule_count()}')
 
         self.update_info_display()
     
@@ -362,6 +366,59 @@ class app:
         except ValueError:
             logging.error(f"Display jump failed: Invalid integer input '{self.display_jump_entry.get()}'")
             messagebox.showerror("Error", "Please enter a valid integer!")
+    
+    def get_offset_by_cdid(self, cdid):
+        """
+        Get the offset position of a specific CdId in the current sort order.
+        """
+        if self.database is None or self.database.db_file is None:
+            return None
+        
+        con = sqlite3.connect(self.database.db_file)
+        cur = con.cursor()
+        
+        # Use ROW_NUMBER to find the offset of the specific CdId in the current sort order
+        query = f"""
+        WITH ordered AS (
+            SELECT CdId, ROW_NUMBER() OVER (ORDER BY {self.sort_column} {self.sort_direction}) - 1 as offset
+            FROM molecules
+        )
+        SELECT offset FROM ordered WHERE CdId = ?
+        """
+        
+        cur.execute(query, (cdid,))
+        result = cur.fetchone()
+        con.close()
+        
+        return result[0] if result else None
+    
+    def jump_to_cdid(self):
+        """
+        Jump to a molecule by its CdId.
+        """
+        if self.image_handler is None:
+            logging.error("Jump to CdId failed: Database not created")
+            messagebox.showerror("Error", "Database not created yet!")
+            return
+        
+        try:
+            cdid = self.cdid_jump_entry.get().strip()
+            if not cdid:
+                messagebox.showerror("Error", "Please enter a CdId!")
+                return
+            
+            offset = self.get_offset_by_cdid(cdid)
+            
+            if offset is None:
+                logging.error(f"Jump to CdId failed: CdId '{cdid}' not found")
+                messagebox.showerror("Error", f"CdId '{cdid}' not found in database!")
+                return
+            
+            self.current_index = offset
+            self.refresh_display()
+        except Exception as e:
+            logging.error(f"Jump to CdId failed: {str(e)}")
+            messagebox.showerror("Error", f"Failed to jump to CdId:\n{str(e)}")
 
     def get_molecule_count(self):
         """
@@ -414,7 +471,7 @@ class app:
         self.interact_frame.grid(row=2, column=0, columnspan=3, padx=5, pady=10)
 
         self.next_img = Button(self.interact_frame, text="Next Molecule", command=self.display_next) # Button to display the next molecule based on current sort order and index
-        self.next_img.grid(row=0, column=4, padx=15, pady=10)
+        self.next_img.grid(row=0, column=5, padx=15, pady=10)
 
         save_icon_path = resource_path("images/save-icon.png")
         img2 = Image.open(save_icon_path).resize((30, 30))
@@ -422,11 +479,20 @@ class app:
         self.save_image = Button(self.interact_frame, image=self.save_icon, command=self.save_current_image, width=30, height=30) # Button to save the currently displayed molecule image, uses a save icon image for the button
         self.save_image.grid(row=0, column=1, padx=15, pady=10)
 
+        self.current_mol_label = Label(self.interact_frame, text=f'{self.current_index + 1} / {self.get_molecule_count()}', border=2, relief="sunken") # Label to display the current molecule index and total count (e.g., "5 / 100"), updates as user navigates through molecules
+        self.current_mol_label.grid(row=0, column=2, padx=15, pady=10)
+
         self.display_jump_label = Label(self.interact_frame, text="Go to molecule # :", width=15)
-        self.display_jump_label.grid(row=0, column=2, padx=5, pady=10)
+        self.display_jump_label.grid(row=0, column=3, padx=5, pady=10)
         self.display_jump_entry = tk.Entry(self.interact_frame, width=10, validate="key", validatecommand=(self.interact_frame.register(self.validate_digit), "%P")) # Entry widget for user to input molecule index to jump to, validates that input is a digit and triggers display_jump() on Enter key press
-        self.display_jump_entry.grid(row=0, column=3, padx=5, pady=10)
+        self.display_jump_entry.grid(row=0, column=4, padx=5, pady=10)
         self.display_jump_entry.bind("<Return>", lambda event: self.display_jump()) # Bind Enter key to trigger display_jump() function when user inputs an index and presses Enter
+
+        self.cdid_jump_label = Label(self.sorting_frame, text="Go to CdId:", width=15)
+        self.cdid_jump_label.grid(row=0, column=4, padx=5, pady=10)
+        self.cdid_jump_entry = tk.Entry(self.sorting_frame, width=10) # Entry widget for user to input CdId to jump to
+        self.cdid_jump_entry.grid(row=0, column=5, padx=5, pady=10)
+        self.cdid_jump_entry.bind("<Return>", lambda event: self.jump_to_cdid()) # Bind Enter key to trigger jump_to_cdid() function
 
         self.chg_ord = Button(self.sorting_frame, text="Change Sort Order", command=self.update_order) # Button to toggle the sort order between ascending and descending for the currently selected sort column, updates the displayed molecule accordingly
         self.chg_ord.grid(row=0, column=3, padx=15, pady=10)
