@@ -1,6 +1,17 @@
 import sqlite3
+import logging
+
+# Configure logging
+logging.basicConfig(
+    filename="database_errors.log",
+    level=logging.WARNING,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 class InfoHandler:
+    """
+    Handles fetching molecule information from the SQLite database that will be displayed in the GUI. This class is separate from ImageHandler to maintain a clear separation of concerns.
+    """
     def __init__(self, db_file='data/chem_database.db'):
         self.db_file = db_file
 
@@ -14,7 +25,9 @@ class InfoHandler:
         con.close()
 
         if result is None:
-            raise ValueError(f"No information found at offset {offset}")
+            error_msg = f"No information found at offset {offset} (sort: {sort_column} {sort_direction})"
+            logging.error(error_msg)
+            raise ValueError(error_msg)
         
         info = {
             'CdId': result[0],

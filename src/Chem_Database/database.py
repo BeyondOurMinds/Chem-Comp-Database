@@ -12,13 +12,14 @@ import logging
 import certifi
 import ssl
 
-os.environ['SSL_CERT_FILE'] = certifi.where()
+
+os.environ['SSL_CERT_FILE'] = certifi.where() # certifi used to ensure that the application can verify SSL (Secure Sockets Layer) certificates when making requests to PubChem, which is necessary for fetching IUPAC names based on SMILES strings. This sets the environment variable to point to certifi's certificate bundle, allowing secure HTTPS connections. This wasn't needed when run directly, but when turned into an executable with pyinstaller, the SSL certificate verification was failing without this, likely because the bundled Python environment in the executable couldn't find the default certificates. By explicitly setting this, we ensure that SSL requests work correctly in the packaged application.
 ssl._create_default_https_context = ssl.create_default_context
 
 
 logging.basicConfig(
-    filename="iupac_errors.log",
-    level=logging.ERROR,
+    filename="database_errors.log",
+    level=logging.WARNING,
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
@@ -33,8 +34,9 @@ class Database:
     def load_sdf(self):
         """Load SDF file and prepare DataFrame"""
         self.skipped_entries = []
-        supplier = Chem.SDMolSupplier(self.sdf_file, sanitize=False, strictParsing=False)
+        supplier = Chem.SDMolSupplier(self.sdf_file, sanitize=False, strictParsing=False) # Disable sanitization and strict parsing to allow loading of all molecules, even those with issues. We'll handle sanitization manually to identify and skip problematic entries while still loading the rest of the data.
         for idx in range(len(supplier)):
+            ''' Try to get the CdId for logging purposes, even if the molecule fails to load or sanitize. This way we can keep track of which entries are being skipped due to issues. We attempt to get the CdId from the molecule's properties first, and if that fails (e.g., because the molecule is None), we try to parse it from the raw SDF block text. If both methods fail, we just log that we couldn't determine the CdId for that entry. This helps us maintain a record of all skipped entries for debugging and user feedback. '''
             mol = supplier[idx]
             cdid = None
             if mol is not None and mol.HasProp("CdId"):
@@ -53,7 +55,7 @@ class Database:
 
             if mol is None:
                 if cdid:
-                    self.skipped_entries.append(cdid)
+                    self.skipped_entries.append(cdid) # Log the CdId of the entry that failed to load as a molecule, if we were able to determine it. This way we can keep track of which specific entries are causing issues in the SDF file.
                 continue
 
             # Try sanitization; any non-zero result indicates a sanitization error.
@@ -61,7 +63,8 @@ class Database:
             if sanitize_result != 0 and cdid:
                 self.skipped_entries.append(cdid)
 
-        self.df = PandasTools.LoadSDF(self.sdf_file, smilesName="SMILES")
+        self.df = PandasTools.LoadSDF(self.sdf_file, smilesName="SMILES") # Load the SDF file into a DataFrame, which will include all entries. The sanitization errors will be handled separately, and we will keep track of which entries were skipped due to these errors. This allows us to load as much data as possible while still providing feedback on any issues encountered during loading and sanitization.
+        logging.warning(f"Skipped {len(self.skipped_entries)} entries due to sanitization errors. CdIds: {self.skipped_entries}")
         messagebox.showwarning("Skipped Entries", f'Skipped {len(self.skipped_entries)} entries due to sanitization errors. CdIds: {self.skipped_entries}')
         
         print(self.df)
@@ -123,8 +126,11 @@ class Database:
             );
         ''')
         
-        entry_order = 0
+        entry_order = 0 # used to keep track of the order in which the entries are inserted into the database. This was initially used for sorting and calling purposes, but is now no longer called directly. However, it is still being inserted into the database as a column, which allows for potential future use in sorting or other operations. It also serves as a record of the original order of the entries as they were processed and inserted into the database, which could be useful for debugging or analysis purposes.
         for idx, row in enumerate(self.df.itertuples()):
+            """
+            Iterate over each row in the DataFrame and insert the molecule data into the database. For each molecule, we extract the necessary information such as CdId, SMILES, and IUPAC name. We then use RDKit to calculate various molecular descriptors like molecular weight, LogP, number of hydrogen bond donors and acceptors, number of rotatable bonds, and ring count. We also generate an image of the molecule and convert it to binary data for storage in the database. The filter_list parameter allows us to apply certain filters (e.g., excluding molecules with LogP >= 5) before inserting them into the database.
+            """
             id = row.CdId
             smiles = row.SMILES
             iupac_name = iupac_names[idx]  # Get the corresponding IUPAC name
@@ -154,6 +160,7 @@ class Database:
         query = "SELECT COUNT(*) FROM molecules WHERE IUPAC_NAME = 'N/A'"
         missing_iupac_count = con.execute(query).fetchone()[0]
         if missing_iupac_count > 0:
+            logging.warning(f"Could not fetch IUPAC names for {missing_iupac_count} molecules, marked as 'N/A'")
             messagebox.showwarning("IUPAC Name Warning", f"Could not fetch IUPAC names for {missing_iupac_count} molecules and are marked as 'N/A'. This may be due to your internet connection, rate limits, unrecognized SMILES, or other issues. Please check your internet connection and try again later.")
 
         con.commit()
