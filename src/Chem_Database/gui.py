@@ -6,6 +6,7 @@ from Chem_Database.image import ImageHandler
 from Chem_Database.img_display import InfoHandler
 from PIL import ImageTk, Image
 import sys
+import sqlite3
 
 def resource_path(relative_path):
     if hasattr(sys, '_MEIPASS'):
@@ -158,6 +159,11 @@ class app:
                 self.save_icon = ImageTk.PhotoImage(img2)
                 self.save_image = Button(self.display_frame, image=self.save_icon, command=self.save_current_image, width=30, height=30)
                 self.save_image.grid(row=2, column=1, padx=15, pady=10)
+
+                self.display_jump_label = Label(self.display_frame, text="Go to molecule #:", width=15)
+                self.display_jump_label.grid(row=2, column=0, padx=5, pady=10)
+                self.display_jump_entry = tk.Entry(self.display_frame, width=10)
+                self.display_jump_entry.grid(row=2, column=4, padx=5, pady=10)
 
                 self.chg_ord = Button(self.display_frame, text="Change Sort Order", command=self.update_order)
                 self.chg_ord.grid(row=2, column=3, padx=15, pady=10)
@@ -315,6 +321,12 @@ class app:
                 self.save_image = Button(self.display_frame, image=self.save_icon, command=self.save_current_image, width=30, height=30)
                 self.save_image.grid(row=2, column=1, padx=15, pady=10)
 
+                self.display_jump_label = Label(self.display_frame, text="Go to molecule #:", width=15)
+                self.display_jump_label.grid(row=2, column=5, padx=5, pady=10)
+                self.display_jump_entry = tk.Entry(self.display_frame, width=10, validate="key", validatecommand=(self.display_frame.register(self.validate_digit), "%P"))
+                self.display_jump_entry.grid(row=2, column=4, padx=5, pady=10)
+                self.display_jump_entry.bind("<Return>", lambda event: self.display_jump())
+
                 self.chg_ord = Button(self.display_frame, text="Change Sort Order", command=self.update_order)
                 self.chg_ord.grid(row=2, column=3, padx=15, pady=10)
 
@@ -333,6 +345,41 @@ class app:
                 # Update label if display frame already exists
                 if self.database_path_label is not None:
                     self.database_path_label.config(text=db_path)
+
+
+    def validate_digit(self, P):
+        return P.isdigit() or P == ""
+    
+    def display_jump(self):
+        if self.image_handler is None:
+            messagebox.showerror("Error", "Database not created yet!")
+            return
+        
+        try:
+            index = int(self.display_jump_entry.get()) - 1  # Convert to 0-based index
+            if index < 0:
+                messagebox.showerror("Error", "Please enter a positive integer!")
+                return
+            molecule_count = self.get_molecule_count()
+            if index >= molecule_count:
+                messagebox.showerror("Error", f"Please enter a number between 1 and {molecule_count}!")
+                return
+            self.current_index = index
+            self.refresh_display()
+        except ValueError:
+            messagebox.showerror("Error", "Please enter a valid integer!")
+
+    def get_molecule_count(self):
+        if self.database is None or self.database.db_file is None:
+            messagebox.showerror("Error", "Database not initialized!")
+            return 0
+        
+        con = sqlite3.connect(self.database.db_file)
+        cur = con.cursor()
+        cur.execute("SELECT COUNT(*) FROM molecules")
+        count = cur.fetchone()[0]
+        con.close()
+        return count
 
 if __name__ == "__main__":
     app()
