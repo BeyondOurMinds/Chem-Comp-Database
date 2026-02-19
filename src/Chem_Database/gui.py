@@ -127,62 +127,7 @@ class app:
             self.image_handler = ImageHandler(db_path)
             # Create and show display frame after successful database creation
             if self.display_frame is None:
-                self.display_frame = tk.Frame(self.root, bd=2, relief="groove")
-                self.display_frame.grid(row=1, column=0, padx=10, pady=10)
-
-
-                # Initialize image display with first molecule
-                # Initialize sorting defaults
-                self.sort_column = "CdId"
-                self.sort_direction = "ASC"
-                self.current_index = 0
-
-                # Create image label (empty initially)
-                self.img_display = Label(self.display_frame)
-                self.img_display.grid(row=1, column=0, padx=5, pady=10)
-
-                self.info_display = tk.Frame(self.display_frame, bd=2, relief="groove")
-                self.info_display.grid(row=1, column=1, padx=5, pady=10)
-
-                # Load first molecule
-                self.refresh_display()
-
-                
-                self.database_path_label = Label(self.display_frame, text=db_path, border=2, relief="sunken")
-                self.database_path_label.grid(row=0, column=1, padx=5, pady=10)
-
-                self.interact_frame = tk.Frame(self.display_frame)
-                self.interact_frame.grid(row=2, column=0, columnspan=3, padx=5, pady=10)
-
-                self.next_img = Button(self.interact_frame, text="Next Molecule", command=self.display_next)
-                self.next_img.grid(row=0, column=2, padx=15, pady=10)
-
-                save_icon_path = resource_path("images/save-icon.png")
-                img2 = Image.open(save_icon_path).resize((30, 30))
-                self.save_icon = ImageTk.PhotoImage(img2)
-                self.save_image = Button(self.interact_frame, image=self.save_icon, command=self.save_current_image, width=30, height=30)
-                self.save_image.grid(row=0, column=1, padx=15, pady=10)
-
-                self.display_jump_label = Label(self.interact_frame, text="Go to molecule #:", width=15)
-                self.display_jump_label.grid(row=0, column=5, padx=5, pady=10)
-                self.display_jump_entry = tk.Entry(self.interact_frame, width=10, validate="key", validatecommand=(self.interact_frame.register(self.validate_digit), "%P"))
-                self.display_jump_entry.grid(row=0, column=6, padx=5, pady=10)
-                self.display_jump_entry.bind("<Return>", lambda event: self.display_jump())
-
-                self.chg_ord = Button(self.interact_frame, text="Change Sort Order", command=self.update_order)
-                self.chg_ord.grid(row=0, column=4, padx=15, pady=10)
-
-                self.prev_img = Button(self.interact_frame, text="Previous Molecule", command=self.display_previous)
-                self.prev_img.grid(row=0, column=0, padx=15, pady=10)
-                
-                db_label = Label(self.display_frame, text="Database Path:")
-                db_label.grid(row=0, column=0, padx=5, pady=10)
-
-                options = ["CdId","Molecular weight", "LogP", "H-bond Donors", "H-bond Acceptors"]
-                self.selected_option = tk.StringVar(self.interact_frame)
-                self.selected_option.set(options[0])
-                dropdown = OptionMenu(self.interact_frame, self.selected_option, *options, command=self.update_sort)
-                dropdown.grid(row=0, column=3, padx=5, pady=10)
+                self.initialize_database(db_path)
             else:
                 # Update label if display frame already exists
                 if self.database_path_label is not None:
@@ -295,62 +240,7 @@ class app:
             self.image_handler = ImageHandler(db_path)
             messagebox.showinfo("Database Loaded", f"Loaded database from: {db_path}")
             if self.display_frame is None:
-                self.display_frame = tk.Frame(self.root, bd=2, relief="groove")
-                self.display_frame.grid(row=1, column=0, padx=10, pady=10)
-
-
-                # Initialize image display with first molecule
-                # Initialize sorting defaults
-                self.sort_column = "CdId"
-                self.sort_direction = "ASC"
-                self.current_index = 0
-
-                # Create image label (empty initially)
-                self.img_display = Label(self.display_frame)
-                self.img_display.grid(row=1, column=0, padx=5, pady=10)
-
-                self.info_display = tk.Frame(self.display_frame, bd=2, relief="groove")
-                self.info_display.grid(row=1, column=1, padx=5, pady=10)
-
-                # Load first molecule
-                self.refresh_display()
-
-                
-                self.database_path_label = Label(self.display_frame, text=db_path, border=2, relief="sunken")
-                self.database_path_label.grid(row=0, column=1, padx=5, pady=10)
-
-                self.interact_frame = tk.Frame(self.display_frame)
-                self.interact_frame.grid(row=2, column=0, columnspan=3, padx=5, pady=10)
-
-                self.next_img = Button(self.interact_frame, text="Next Molecule", command=self.display_next)
-                self.next_img.grid(row=0, column=2, padx=15, pady=10)
-
-                save_icon_path = resource_path("images/save-icon.png")
-                img2 = Image.open(save_icon_path).resize((30, 30))
-                self.save_icon = ImageTk.PhotoImage(img2)
-                self.save_image = Button(self.interact_frame, image=self.save_icon, command=self.save_current_image, width=30, height=30)
-                self.save_image.grid(row=0, column=1, padx=15, pady=10)
-
-                self.display_jump_label = Label(self.interact_frame, text="Go to molecule #:", width=15)
-                self.display_jump_label.grid(row=0, column=5, padx=5, pady=10)
-                self.display_jump_entry = tk.Entry(self.interact_frame, width=10, validate="key", validatecommand=(self.interact_frame.register(self.validate_digit), "%P"))
-                self.display_jump_entry.grid(row=0, column=6, padx=5, pady=10)
-                self.display_jump_entry.bind("<Return>", lambda event: self.display_jump())
-
-                self.chg_ord = Button(self.interact_frame, text="Change Sort Order", command=self.update_order)
-                self.chg_ord.grid(row=0, column=4, padx=15, pady=10)
-
-                self.prev_img = Button(self.interact_frame, text="Previous Molecule", command=self.display_previous)
-                self.prev_img.grid(row=0, column=0, padx=15, pady=10)
-                
-                db_label = Label(self.display_frame, text="Database Path:")
-                db_label.grid(row=0, column=0, padx=5, pady=10)
-
-                options = ["CdId","Molecular weight", "LogP", "H-bond Donors", "H-bond Acceptors"]
-                self.selected_option = tk.StringVar(self.interact_frame)
-                self.selected_option.set(options[0])
-                dropdown = OptionMenu(self.interact_frame, self.selected_option, *options, command=self.update_sort)
-                dropdown.grid(row=0, column=3, padx=5, pady=10)
+                self.initialize_database(db_path)
             else:
                 # Update label if display frame already exists
                 if self.database_path_label is not None:
@@ -390,6 +280,64 @@ class app:
         count = cur.fetchone()[0]
         con.close()
         return count
+    
+    def initialize_database(self, db_path):
+        self.display_frame = tk.Frame(self.root, bd=2, relief="groove")
+        self.display_frame.grid(row=1, column=0, padx=10, pady=10)
+
+
+        # Initialize image display with first molecule
+        # Initialize sorting defaults
+        self.sort_column = "CdId"
+        self.sort_direction = "ASC"
+        self.current_index = 0
+
+        # Create image label (empty initially)
+        self.img_display = Label(self.display_frame)
+        self.img_display.grid(row=1, column=0, padx=5, pady=10)
+
+        self.info_display = tk.Frame(self.display_frame, bd=2, relief="groove")
+        self.info_display.grid(row=1, column=1, padx=5, pady=10)
+
+        # Load first molecule
+        self.refresh_display()
+
+        
+        self.database_path_label = Label(self.display_frame, text=db_path, border=2, relief="sunken")
+        self.database_path_label.grid(row=0, column=1, padx=5, pady=10)
+
+        self.interact_frame = tk.Frame(self.display_frame)
+        self.interact_frame.grid(row=2, column=0, columnspan=3, padx=5, pady=10)
+
+        self.next_img = Button(self.interact_frame, text="Next Molecule", command=self.display_next)
+        self.next_img.grid(row=0, column=2, padx=15, pady=10)
+
+        save_icon_path = resource_path("images/save-icon.png")
+        img2 = Image.open(save_icon_path).resize((30, 30))
+        self.save_icon = ImageTk.PhotoImage(img2)
+        self.save_image = Button(self.interact_frame, image=self.save_icon, command=self.save_current_image, width=30, height=30)
+        self.save_image.grid(row=0, column=1, padx=15, pady=10)
+
+        self.display_jump_label = Label(self.interact_frame, text="Go to molecule #:", width=15)
+        self.display_jump_label.grid(row=0, column=5, padx=5, pady=10)
+        self.display_jump_entry = tk.Entry(self.interact_frame, width=10, validate="key", validatecommand=(self.interact_frame.register(self.validate_digit), "%P"))
+        self.display_jump_entry.grid(row=0, column=6, padx=5, pady=10)
+        self.display_jump_entry.bind("<Return>", lambda event: self.display_jump())
+
+        self.chg_ord = Button(self.interact_frame, text="Change Sort Order", command=self.update_order)
+        self.chg_ord.grid(row=0, column=4, padx=15, pady=10)
+
+        self.prev_img = Button(self.interact_frame, text="Previous Molecule", command=self.display_previous)
+        self.prev_img.grid(row=0, column=0, padx=15, pady=10)
+        
+        db_label = Label(self.display_frame, text="Database Path:")
+        db_label.grid(row=0, column=0, padx=5, pady=10)
+
+        options = ["CdId","Molecular weight", "LogP", "H-bond Donors", "H-bond Acceptors"]
+        self.selected_option = tk.StringVar(self.interact_frame)
+        self.selected_option.set(options[0])
+        dropdown = OptionMenu(self.interact_frame, self.selected_option, *options, command=self.update_sort)
+        dropdown.grid(row=0, column=3, padx=5, pady=10)
 
 if __name__ == "__main__":
     app()
