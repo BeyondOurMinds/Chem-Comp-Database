@@ -223,8 +223,9 @@ class app:
         
         try:
             # Increment to next molecule
-            self.current_index += 1
-            self.refresh_display()
+            if self.current_index < self.get_molecule_count() - 1:
+                self.current_index += 1
+                self.refresh_display()
         except Exception as e:
             logging.error(f"Failed to display next image: {str(e)}")
             messagebox.showerror("Error", f"Failed to display image:\n{str(e)}")
@@ -402,15 +403,18 @@ class app:
         # Load first molecule
         self.refresh_display()
 
-        
-        self.database_path_label = Label(self.display_frame, text=db_path, border=2, relief="sunken")
+        self.sorting_frame = tk.Frame(self.display_frame)
+        self.sorting_frame.grid(row=0, column=0, columnspan=3, padx=5, pady=10)
+
+
+        self.database_path_label = Label(self.sorting_frame, text=db_path, border=2, relief="sunken")
         self.database_path_label.grid(row=0, column=1, padx=5, pady=10)
 
         self.interact_frame = tk.Frame(self.display_frame)
         self.interact_frame.grid(row=2, column=0, columnspan=3, padx=5, pady=10)
 
         self.next_img = Button(self.interact_frame, text="Next Molecule", command=self.display_next) # Button to display the next molecule based on current sort order and index
-        self.next_img.grid(row=0, column=2, padx=15, pady=10)
+        self.next_img.grid(row=0, column=4, padx=15, pady=10)
 
         save_icon_path = resource_path("images/save-icon.png")
         img2 = Image.open(save_icon_path).resize((30, 30))
@@ -418,26 +422,26 @@ class app:
         self.save_image = Button(self.interact_frame, image=self.save_icon, command=self.save_current_image, width=30, height=30) # Button to save the currently displayed molecule image, uses a save icon image for the button
         self.save_image.grid(row=0, column=1, padx=15, pady=10)
 
-        self.display_jump_label = Label(self.interact_frame, text="Go to molecule #:", width=15)
-        self.display_jump_label.grid(row=0, column=5, padx=5, pady=10)
+        self.display_jump_label = Label(self.interact_frame, text="Go to molecule # :", width=15)
+        self.display_jump_label.grid(row=0, column=2, padx=5, pady=10)
         self.display_jump_entry = tk.Entry(self.interact_frame, width=10, validate="key", validatecommand=(self.interact_frame.register(self.validate_digit), "%P")) # Entry widget for user to input molecule index to jump to, validates that input is a digit and triggers display_jump() on Enter key press
-        self.display_jump_entry.grid(row=0, column=6, padx=5, pady=10)
+        self.display_jump_entry.grid(row=0, column=3, padx=5, pady=10)
         self.display_jump_entry.bind("<Return>", lambda event: self.display_jump()) # Bind Enter key to trigger display_jump() function when user inputs an index and presses Enter
 
-        self.chg_ord = Button(self.interact_frame, text="Change Sort Order", command=self.update_order) # Button to toggle the sort order between ascending and descending for the currently selected sort column, updates the displayed molecule accordingly
-        self.chg_ord.grid(row=0, column=4, padx=15, pady=10)
+        self.chg_ord = Button(self.sorting_frame, text="Change Sort Order", command=self.update_order) # Button to toggle the sort order between ascending and descending for the currently selected sort column, updates the displayed molecule accordingly
+        self.chg_ord.grid(row=0, column=3, padx=15, pady=10)
 
         self.prev_img = Button(self.interact_frame, text="Previous Molecule", command=self.display_previous) # Button to display the previous molecule based on current sort order and index
         self.prev_img.grid(row=0, column=0, padx=15, pady=10)
         
-        db_label = Label(self.display_frame, text="Database Path:")
+        db_label = Label(self.sorting_frame, text="Database Path:")
         db_label.grid(row=0, column=0, padx=5, pady=10)
 
         options = ["CdId","Molecular weight", "LogP", "H-bond Donors", "H-bond Acceptors"]
-        self.selected_option = tk.StringVar(self.interact_frame)
+        self.selected_option = tk.StringVar(self.sorting_frame)
         self.selected_option.set(options[0])
-        dropdown = OptionMenu(self.interact_frame, self.selected_option, *options, command=self.update_sort) # Dropdown menu to select the column to sort by, updates the displayed molecule based on the selected sort column and current sort direction
-        dropdown.grid(row=0, column=3, padx=5, pady=10)
+        dropdown = OptionMenu(self.sorting_frame, self.selected_option, *options, command=self.update_sort) # Dropdown menu to select the column to sort by, updates the displayed molecule based on the selected sort column and current sort direction
+        dropdown.grid(row=0, column=2, padx=5, pady=10)
 
 if __name__ == "__main__":
     app()
