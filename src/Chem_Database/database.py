@@ -35,37 +35,58 @@ class Database:
         """Load SDF file and prepare DataFrame"""
         self.skipped_entries = []
         supplier = Chem.SDMolSupplier(self.sdf_file, sanitize=False, strictParsing=False) # Disable sanitization and strict parsing to allow loading of all molecules, even those with issues. We'll handle sanitization manually to identify and skip problematic entries while still loading the rest of the data.
+        
+        # Check if CdId property exists in the SDF file
+        has_cdid = False
+        if len(supplier) > 0:
+            first_mol = supplier[0]
+            if first_mol is not None and first_mol.HasProp("CdId"):
+                has_cdid = True
+        
         for idx in range(len(supplier)):
-            ''' Try to get the CdId for logging purposes, even if the molecule fails to load or sanitize. This way we can keep track of which entries are being skipped due to issues. We attempt to get the CdId from the molecule's properties first, and if that fails (e.g., because the molecule is None), we try to parse it from the raw SDF block text. If both methods fail, we just log that we couldn't determine the CdId for that entry. This helps us maintain a record of all skipped entries for debugging and user feedback. '''
+            ''' Try to get the CdId for logging purposes, even if the molecule fails to load or sanitize. This way we can keep track of which entries are being skipped due to issues. We use CdId if available, otherwise use the entry position (idx + 1) as the identifier. This helps us maintain a record of all skipped entries for debugging and user feedback. '''
             mol = supplier[idx]
             cdid = None
-            if mol is not None and mol.HasProp("CdId"):
-                cdid = mol.GetProp("CdId")
-            else:
-                try:
-                    block = supplier.GetItemText(idx)
-                    if block:
-                        lines = block.splitlines()
-                        for i, line in enumerate(lines):
-                            if line.strip() == "> <CdId>" and i + 1 < len(lines):
-                                cdid = lines[i + 1].strip()
-                                break
-                except Exception:
-                    cdid = None
+            if has_cdid:
+                if mol is not None and mol.HasProp("CdId"):
+                    cdid = mol.GetProp("CdId")
+                else:
+                    try:
+                        block = supplier.GetItemText(idx)
+                        if block:
+                            lines = block.splitlines()
+                            for i, line in enumerate(lines):
+                                if line.strip() == "> <CdId>" and i + 1 < len(lines):
+                                    cdid = lines[i + 1].strip()
+                                    break
+                    except Exception:
+                        cdid = None
+            
+            # Use entry position as fallback identifier
+            identifier = cdid if cdid else str(idx + 1)
 
             if mol is None:
-                if cdid:
-                    self.skipped_entries.append(cdid) # Log the CdId of the entry that failed to load as a molecule, if we were able to determine it. This way we can keep track of which specific entries are causing issues in the SDF file.
+                self.skipped_entries.append(identifier) # Log the identifier of the entry that failed to load as a molecule. This way we can keep track of which specific entries are causing issues in the SDF file.
                 continue
 
             # Try sanitization; any non-zero result indicates a sanitization error.
             sanitize_result = Chem.SanitizeMol(mol, catchErrors=True)
-            if sanitize_result != 0 and cdid:
-                self.skipped_entries.append(cdid)
+            if sanitize_result != 0:
+                self.skipped_entries.append(identifier)
 
         self.df = PandasTools.LoadSDF(self.sdf_file, smilesName="SMILES") # Load the SDF file into a DataFrame, which will include all entries. The sanitization errors will be handled separately, and we will keep track of which entries were skipped due to these errors. This allows us to load as much data as possible while still providing feedback on any issues encountered during loading and sanitization.
-        logging.warning(f"Skipped {len(self.skipped_entries)} entries due to sanitization errors. CdIds: {self.skipped_entries}")
-        messagebox.showwarning("Skipped Entries", f'Skipped {len(self.skipped_entries)} entries due to sanitization errors. CdIds: {self.skipped_entries}')
+        
+        # If CdId column doesn't exist, create it using sequential numbering
+        if 'CdId' not in self.df.columns:
+            self.df['CdId'] = range(1, len(self.df) + 1)
+            messagebox.showinfo("CdId Column Created", "CdId column not found in SDF file. Created sequential IDs (1, 2, 3...) for database compatibility.")
+        else:
+            # Ensure CdId is numeric (convert from string if necessary)
+            self.df['CdId'] = self.df['CdId'].astype(int)
+        
+        if len(self.skipped_entries) > 0:
+            logging.warning(f"Skipped {len(self.skipped_entries)} entries due to sanitization errors. Identifiers: {self.skipped_entries}")
+            messagebox.showwarning("Skipped Entries", f'Skipped {len(self.skipped_entries)} entries due to sanitization errors. Identifiers: {self.skipped_entries}')
         
         print(self.df)
         print(f"\nDataFrame shape: {self.df.shape}")
@@ -75,6 +96,7 @@ class Database:
             self.df = self.df.drop('ROMol', axis=1)  # Drop the non-serializable ROMol column
         
         print(f"Columns: {self.df.columns.tolist()}")
+        print(f"First 5 rows:\n{self.df.head()}")
 
     async def get_compound_async(self, smiles, semaphore, delay=0.3):
         """Fetch IUPAC name for a single SMILES string with rate limiting"""
@@ -114,6 +136,7 @@ class Database:
             CREATE TABLE IF NOT EXISTS molecules (
                 CdId INTEGER PRIMARY KEY,
                 EntryOrder INTEGER,
+                ID TEXT,
                 Structure BLOB,
                 SMILES TEXT,
                 IUPAC_NAME TEXT,
@@ -131,8 +154,9 @@ class Database:
             """
             Iterate over each row in the DataFrame and insert the molecule data into the database. For each molecule, we extract the necessary information such as CdId, SMILES, and IUPAC name. We then use RDKit to calculate various molecular descriptors like molecular weight, LogP, number of hydrogen bond donors and acceptors, number of rotatable bonds, and ring count. We also generate an image of the molecule and convert it to binary data for storage in the database. The filter_list parameter allows us to apply certain filters (e.g., excluding molecules with LogP >= 5) before inserting them into the database.
             """
-            id = row.CdId
+            cd = row.CdId
             smiles = row.SMILES
+            id = row.ID
             iupac_name = iupac_names[idx]  # Get the corresponding IUPAC name
             mol = Chem.MolFromSmiles(smiles)
             bond = rdMolDescriptors.CalcNumRotatableBonds(mol)
@@ -154,8 +178,8 @@ class Database:
             img.save(img_bytes, format='PNG')
             img_data = img_bytes.getvalue()
             entry_order += 1
-            cur.execute("INSERT INTO molecules (CdId, EntryOrder, Structure, SMILES, IUPAC_NAME, Mol_Weight, LogP, H_Bond_Donors, H_Bond_Acceptors, Rotatable_Bonds, Ring_Count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                        (id, entry_order, img_data, smiles, iupac_name, molWeight, logp, bonddonor, bondacceptor, bond, ringCount))
+            cur.execute("INSERT INTO molecules (CdId, EntryOrder, ID, Structure, SMILES, IUPAC_NAME, Mol_Weight, LogP, H_Bond_Donors, H_Bond_Acceptors, Rotatable_Bonds, Ring_Count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        (cd, entry_order, id, img_data, smiles, iupac_name, molWeight, logp, bonddonor, bondacceptor, bond, ringCount))
         
         query = "SELECT COUNT(*) FROM molecules WHERE IUPAC_NAME = 'N/A'"
         missing_iupac_count = con.execute(query).fetchone()[0]
