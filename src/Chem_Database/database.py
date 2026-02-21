@@ -136,6 +136,7 @@ class Database:
             CREATE TABLE IF NOT EXISTS molecules (
                 CdId INTEGER PRIMARY KEY,
                 EntryOrder INTEGER,
+                ID TEXT,
                 Structure BLOB,
                 SMILES TEXT,
                 IUPAC_NAME TEXT,
@@ -153,8 +154,9 @@ class Database:
             """
             Iterate over each row in the DataFrame and insert the molecule data into the database. For each molecule, we extract the necessary information such as CdId, SMILES, and IUPAC name. We then use RDKit to calculate various molecular descriptors like molecular weight, LogP, number of hydrogen bond donors and acceptors, number of rotatable bonds, and ring count. We also generate an image of the molecule and convert it to binary data for storage in the database. The filter_list parameter allows us to apply certain filters (e.g., excluding molecules with LogP >= 5) before inserting them into the database.
             """
-            id = row.CdId
+            cd = row.CdId
             smiles = row.SMILES
+            id = row.ID
             iupac_name = iupac_names[idx]  # Get the corresponding IUPAC name
             mol = Chem.MolFromSmiles(smiles)
             bond = rdMolDescriptors.CalcNumRotatableBonds(mol)
@@ -176,8 +178,8 @@ class Database:
             img.save(img_bytes, format='PNG')
             img_data = img_bytes.getvalue()
             entry_order += 1
-            cur.execute("INSERT INTO molecules (CdId, EntryOrder, Structure, SMILES, IUPAC_NAME, Mol_Weight, LogP, H_Bond_Donors, H_Bond_Acceptors, Rotatable_Bonds, Ring_Count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                        (id, entry_order, img_data, smiles, iupac_name, molWeight, logp, bonddonor, bondacceptor, bond, ringCount))
+            cur.execute("INSERT INTO molecules (CdId, EntryOrder, ID, Structure, SMILES, IUPAC_NAME, Mol_Weight, LogP, H_Bond_Donors, H_Bond_Acceptors, Rotatable_Bonds, Ring_Count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        (cd, entry_order, id, img_data, smiles, iupac_name, molWeight, logp, bonddonor, bondacceptor, bond, ringCount))
         
         query = "SELECT COUNT(*) FROM molecules WHERE IUPAC_NAME = 'N/A'"
         missing_iupac_count = con.execute(query).fetchone()[0]

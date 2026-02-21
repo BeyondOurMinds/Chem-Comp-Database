@@ -198,7 +198,8 @@ class app:
             "LogP": "LogP",
             "H-bond Donors": "H_Bond_Donors",
             "H-bond Acceptors": "H_Bond_Acceptors",
-            "Rotatable Bonds": "Rotatable_Bonds"
+            "Rotatable Bonds": "Rotatable_Bonds",
+            "Ring Count": "Ring_Count"
         }
         self.sort_column = column_mapping.get(selected_option, "CdId")  # Default to CdId if option not found
         self.current_direction = "ASC"  # Reset to first molecule when sort order changes
@@ -504,7 +505,7 @@ class app:
         db_label = Label(self.sorting_frame, text="Database Path:")
         db_label.grid(row=0, column=0, padx=5, pady=10)
 
-        options = ["CdId","Molecular weight", "LogP", "H-bond Donors", "H-bond Acceptors", "Rotatable Bonds"]
+        options = ["CdId","Molecular weight", "LogP", "H-bond Donors", "H-bond Acceptors", "Rotatable Bonds", "Ring Count"]
         self.selected_option = tk.StringVar(self.sorting_frame)
         self.selected_option.set(options[0])
         dropdown = OptionMenu(self.sorting_frame, self.selected_option, *options, command=self.update_sort) # Dropdown menu to select the column to sort by, updates the displayed molecule based on the selected sort column and current sort direction
