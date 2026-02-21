@@ -1,6 +1,6 @@
 # Chemical Structure Database Creator and GUI
 ### Current Version:
-V1.0.0
+V1.1.0
 
 ## About
 This program creates a GUI to take an SDF file with optional filters, which is used to populate a database; each entry is then displayed individually with calculated stats. 
